@@ -225,7 +225,7 @@ if (NOT OpenCL_FOUND)
   set(OpenCL_LIBRARIES "")
 endif (NOT OpenCL_FOUND)
 # Required for OpenCL in Nvidia graphic cards
-if (CUDA_FOUND AND OpenCL_FOUND AND ${CUDA_VERSION_MAJOR} LESS 9)
+if (CUDA_FOUND AND OpenCl_FOUND AND ${CUDA_VERSION_MAJOR} LESS 9)
   add_definitions(-DLOWER_CL_VERSION)
 endif (CUDA_FOUND AND OpenCL_FOUND AND ${CUDA_VERSION_MAJOR} LESS 9)
 # Handle desired GPU mode option
@@ -906,6 +906,9 @@ if (WIN32)
   include_directories(${WINDOWS_INCLUDE_DIRS})
 endif (WIN32)
 
+# Add ONNX as a dependency
+find_package(ONNX REQUIRED)
+include_directories(${ONNX_INCLUDE_DIRS})
 
 ### COLLECT ALL 3RD-PARTY LIBRARIES TO BE LINKED AGAINST
 if (UNIX OR APPLE)
@@ -964,7 +967,8 @@ if (UNIX OR APPLE)
   set(OpenPose_3rdparty_libraries ${OpenPose_3rdparty_libraries} pthread)
 endif (UNIX OR APPLE)
 
-
+# Add ONNX to the list of libraries to be linked against
+set(OpenPose_3rdparty_libraries ${OpenPose_3rdparty_libraries} ${ONNX_LIBRARIES})
 
 ### ADD SUBDIRECTORIES
 if (Caffe_FOUND)
