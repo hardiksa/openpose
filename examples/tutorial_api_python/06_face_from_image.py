@@ -30,6 +30,7 @@ try:
     # Flags
     parser = argparse.ArgumentParser()
     parser.add_argument("--image_path", default="../../../examples/media/COCO_val2014_000000000241.jpg", help="Process an image. Read all standard formats (jpg, png, bmp, etc.).")
+    parser.add_argument("--onnx_model_path", default="../../../models/face/face.onnx", help="Path to the ONNX model.")
     args = parser.parse_known_args()
 
     # Custom Params (refer to include/openpose/flags.hpp for more parameters)
@@ -59,6 +60,10 @@ try:
     opWrapper = op.WrapperPython()
     opWrapper.configure(params)
     opWrapper.start()
+
+    # Load ONNX model
+    faceExtractor = op.FaceExtractorCaffe(op.Point(368, 368), op.Point(368, 368), params["model_folder"], 0)
+    faceExtractor.loadOnnxModel(args[0].onnx_model_path)
 
     # Read image and face rectangle locations
     imageToProcess = cv2.imread(args[0].image_path)

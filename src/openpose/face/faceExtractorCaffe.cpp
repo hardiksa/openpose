@@ -10,6 +10,8 @@
 #include <openpose/utilities/fastMath.hpp>
 #include <openpose/utilities/openCv.hpp>
 #include <openpose_private/utilities/openCvMultiversionHeaders.hpp>
+#include <onnx/onnx_pb.h>
+#include <onnx/onnxifi.h>
 
 namespace op
 {
@@ -315,6 +317,76 @@ namespace op
                 UNUSED(faceRectangles);
                 UNUSED(cvInputData);
             #endif
+        }
+        catch (const std::exception& e)
+        {
+            error(e.what(), __LINE__, __FUNCTION__, __FILE__);
+        }
+    }
+
+    void FaceExtractorCaffe::convertCaffeModelToOnnx(const std::string& caffeModelPath, const std::string& onnxModelPath)
+    {
+        try
+        {
+            // Load Caffe model
+            caffe::Net<float> caffeNet(caffeModelPath, caffe::TEST);
+            caffeNet.CopyTrainedLayersFrom(caffeModelPath);
+
+            // Convert to ONNX
+            onnx::ModelProto onnxModel;
+            caffe::NetParameter netParam;
+            caffe::ReadNetParamsFromBinaryFileOrDie(caffeModelPath, &netParam);
+            caffe::NetParameterToOnnxModel(netParam, &onnxModel);
+
+            // Save ONNX model
+            std::ofstream onnxFile(onnxModelPath, std::ios::out | std::ios::binary);
+            if (!onnxFile.is_open())
+                error("Could not open file to save ONNX model: " + onnxModelPath, __LINE__, __FUNCTION__, __FILE__);
+            onnxModel.SerializeToOstream(&onnxFile);
+            onnxFile.close();
+        }
+        catch (const std::exception& e)
+        {
+            error(e.what(), __LINE__, __FUNCTION__, __FILE__);
+        }
+    }
+
+    void FaceExtractorCaffe::saveOnnxModel(const std::string& onnxModelPath)
+    {
+        try
+        {
+            // Save the ONNX model to disk
+            convertCaffeModelToOnnx(upImpl->spNetCaffe->getModelPath(), onnxModelPath);
+        }
+        catch (const std::exception& e)
+        {
+            error(e.what(), __LINE__, __FUNCTION__, __FILE__);
+        }
+    }
+
+    void FaceExtractorCaffe::loadOnnxModel(const std::string& onnxModelPath)
+    {
+        try
+        {
+            // Load the ONNX model for face detection
+            onnx::ModelProto onnxModel;
+            std::ifstream onnxFile(onnxModelPath, std::ios::in | std::ios::binary);
+            if (!onnxFile.is_open())
+                error("Could not open ONNX model file: " + onnxModelPath, __LINE__, __FUNCTION__, __FILE__);
+            onnxModel.ParseFromIstream(&onnxFile);
+            onnxFile.close();
+
+            // Initialize ONNX runtime
+            onnxifi_library* lib;
+            onnxifi_load(ONNXIFI_LOADER_FLAG_VERSION_1_0, &lib);
+            onnxifi_backend* backend;
+            onnxifi_backendID backendID;
+            onnxifi_getBackendIDs(lib, &backendID, 1, nullptr);
+            onnxifi_initBackend(lib, backendID, nullptr, &backend);
+
+            // Load the ONNX model into the backend
+            onnxifi_graph* graph;
+            onnxifi_initGraph(backend, onnxModel.SerializeAsString().c_str(), onnxModel.ByteSizeLong(), nullptr, &graph);
         }
         catch (const std::exception& e)
         {
